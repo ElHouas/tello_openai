@@ -1,12 +1,6 @@
-[submodule "src/flock"]
-	path = src/flock
-	url = https://github.com/clydemcqueen/flock
-[submodule "src/sjtu-drone"]
-	path = src/sjtu-drone
-	url = https://github.com/Tao-wecorp/sjtu-drone
 [submodule "src/vision_opencv"]
 	path = src/vision_opencv
-	url = https://github.com/Tao-wecorp/vision_opencv
+	url = https://github.com/OAkyildiz/vision_opencv.git
 [submodule "src/geometry2"]
 	path = src/geometry2
 	url = https://github.com/Tao-wecorp/geometry2
