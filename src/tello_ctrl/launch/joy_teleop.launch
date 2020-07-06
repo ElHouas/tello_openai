@@ -1,0 +1,4 @@
+<?xml version="1.0" ?>
+<launch>
+  <node name="ctrl_node" pkg="tello_ctrl" type="ps4.py" output="screen" />
+</launch>

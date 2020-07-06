@@ -6,6 +6,7 @@ import tellopy
 import pygame
 import pygame.locals
 from subprocess import Popen, PIPE
+import rospy
 
 
 class JoystickPS4:
@@ -134,39 +135,53 @@ def handle_input_event(drone, e):
             drone.left(0)
 
 
+
+class Ctrl():
+    def __init__(self):
+        rospy.init_node('ctrl_node', anonymous=True)
+        drone = tellopy.Tello()
+        drone.connect()
+        self.rate = rospy.Rate(30)
+        rospy.loginfo('connected to drone')
+
+        global buttons
+        pygame.init()
+        pygame.joystick.init()
+
+        rospy.spin()
+        
+        try:
+            js = pygame.joystick.Joystick(0)
+            js.init()
+            js_name = js.get_name()
+
+            buttons = JoystickPS4
+
+        except pygame.error:
+              pass
+
+
+        try:
+            while 1:
+                # loop with pygame.event.get() is too much tight w/o some sleep
+                time.sleep(0.01)
+                for e in pygame.event.get():
+                    handle_input_event(drone, e)
+        except KeyboardInterrupt as e:
+            print(e)
+        except Exception as e:
+            print(e)
+
+        drone.quit()
+        exit(1)
+
+
 def main():
-    global buttons
-    pygame.init()
-    pygame.joystick.init()
-
     try:
-        js = pygame.joystick.Joystick(0)
-        js.init()
-        js_name = js.get_name()
-
-        buttons = JoystickPS4
-
-    except pygame.error:
+        Ctrl()
+    except KeyboardInterrupt:
         pass
-
-
-    drone = tellopy.Tello()
-    drone.connect()
-
-    try:
-        while 1:
-            # loop with pygame.event.get() is too much tight w/o some sleep
-            time.sleep(0.01)
-            for e in pygame.event.get():
-                handle_input_event(drone, e)
-    except KeyboardInterrupt as e:
-        print(e)
-    except Exception as e:
-        print(e)
-
-    drone.quit()
-    exit(1)
-
+    
 
 if __name__ == '__main__':
     main()
