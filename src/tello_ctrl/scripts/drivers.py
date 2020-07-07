@@ -24,6 +24,9 @@ fpv = [960, 720]
 #Classes
 from helpers.control import Control
 control = Control()
+
+# Helpers
+
 pose = Pose()
 
 class TelloDriver(object):
@@ -37,7 +40,7 @@ class TelloDriver(object):
         # Init 
         rospy.init_node('tello_driver_node', anonymous=False)
         self.current_yaw = 0.0
-        self.rate = rospy.Rate(30)
+        self.rate = rospy.Rate(10)
         self._cv_bridge = CvBridge()
         self.frame = None
         self.centroids = []
@@ -47,16 +50,16 @@ class TelloDriver(object):
         self._flight_data_pub = rospy.Publisher('/tello/flight_data', FlightData, queue_size=1)
         self._image_pub = rospy.Publisher('/tello/camera/image_raw', Image, queue_size=1)
         self.pub_odom = rospy.Publisher('/tello/odom', Odometry, queue_size=1, latch=True)
-        self.pub_imu = rospy.Publisher('/tello/imu', Imu, queue_size=1, latch=True)
+        self.pub_imu= rospy.Publisher('/tello/imu', Imu, queue_size=1, latch=True)
 
-        #  ROS subscribers
+        #  ROS subscps4_jsibers
         self._drone.subscribe(self._drone.EVENT_FLIGHT_DATA, self.flight_data_callback)
         self._drone.subscribe(self._drone.EVENT_LOG_DATA, self.cb_data_log)
         rospy.Subscriber("/aiming/target_point", Point, self.point_callback)
 
 
         # Drone start fly
-        #self._drone.takeoff()
+        self._drone.takeoff()
 
         # Start video thread
         self._stop_request = threading.Event()
@@ -70,21 +73,23 @@ class TelloDriver(object):
             if self.frame is not None:
                 start_time = time.time()
                 frame = deepcopy(self.frame)
-                current_yaw = deepcopy(self.current_yaw)
-                
+                #current_yaw = deepcopy(self.current_yaw)
+
                 if len(self.centroids)==0: 
                     continue
                 else:
-                    cent = self.centroids
-                    print("cent", cent)
+                    cent = self.centroids[0]
+                    rospy.loginfo('cent %s', cent)
+                    
                     yaw_angle = control.yaw(cent)
 
                     try:
-                        print("yaw_angle", yaw_angle)
+
+                        rospy.loginfo('yaw_angle %s', yaw_angle)
                         self._drone.clockwise(yaw_angle)
 
-                        pose.position = 
-                        pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, yaw_angle*pi/180))
+                        #pose.position = 
+                        #pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, yaw_angle*pi/180))
 
 
                     except rospy.ServiceException:
