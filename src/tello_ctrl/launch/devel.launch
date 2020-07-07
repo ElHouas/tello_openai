@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-  <include file="$(find tello_openai)/launch/tello_node.launch" />
-  <include file="$(find tello_openai)/launch/joy_teleop.launch" />
+    <include file="$(find tello_ctrl)/launch/tello_node.launch" />
+    <include file="$(find tello_ctrl)/launch/joy_teleop.launch" />
 </launch>

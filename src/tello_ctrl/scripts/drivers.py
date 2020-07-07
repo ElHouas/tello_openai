@@ -40,7 +40,7 @@ class TelloDriver(object):
         # Init 
         rospy.init_node('tello_driver_node', anonymous=False)
         self.current_yaw = 0.0
-        self.rate = rospy.Rate(10)
+        self.rate = rospy.Rate(30)
         self._cv_bridge = CvBridge()
         self.frame = None
         self.centroids = []
@@ -59,7 +59,7 @@ class TelloDriver(object):
 
 
         # Drone start fly
-        self._drone.takeoff()
+        #self._drone.takeoff()
 
         # Start video thread
         self._stop_request = threading.Event()
