@@ -9,6 +9,7 @@ from std_msgs.msg import Empty
 from tello_msgs.msg import FlightData
 from cv_bridge import CvBridge, CvBridgeError
 from nav_msgs.msg import Odometry
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 #Python Utilities
 import av
@@ -27,7 +28,6 @@ control = Control()
 
 # Helpers
 
-pose = Pose()
 
 class TelloDriver(object):
     def __init__(self):
@@ -42,9 +42,12 @@ class TelloDriver(object):
         self.current_yaw = 0.0
         self.rate = rospy.Rate(30)
         self._cv_bridge = CvBridge()
+        self.pose = Pose()
         self.frame = None
         self.centroids = []
+        self.drone_position = None
         self.height = 0
+
 
         # ROS publishers
         self._flight_data_pub = rospy.Publisher('/tello/flight_data', FlightData, queue_size=1)
@@ -73,33 +76,36 @@ class TelloDriver(object):
             if self.frame is not None:
                 start_time = time.time()
                 frame = deepcopy(self.frame)
-                #current_yaw = deepcopy(self.current_yaw)
+                drone_position = deepcopy(self.drone_position)
 
+                #self.centroids = [480, 360]
+                
                 if len(self.centroids)==0: 
                     continue
                 else:
-                    cent = self.centroids[0]
+                    cent = self.centroids
                     rospy.loginfo('cent %s', cent)
                     
                     yaw_angle = control.yaw(cent)
 
                     try:
-
                         rospy.loginfo('yaw_angle %s', yaw_angle)
                         self._drone.clockwise(yaw_angle)
 
-                        #pose.position = 
-                        #pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, yaw_angle*pi/180))
-
+                        #self.pose.position =  drone_position
+                        #self.pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, yaw_angle*pi/180))
+                        
+                        #print(self.pose)
+                        #self.pub_odom.pose.publish(self.pose)
 
                     except rospy.ServiceException:
                         pass
 
-                    cv2.circle(frame, (480, cent[1]), 3, [0,0,255], -1, cv2.LINE_AA) #red
-                    cv2.circle(frame, (cent[0], cent[1]), 3, [0,255,0], -1, cv2.LINE_AA) #green
+                    #cv2.circle(frame, (480, cent[1]), 3, [0,0,255], -1, cv2.LINE_AA) #red
+                    #cv2.circle(frame, (cent[0], cent[1]), 3, [0,255,0], -1, cv2.LINE_AA) #green
 
-                cv2.imshow("", frame)
-                cv2.waitKey(1)
+                #cv2.imshow("", frame)
+                #cv2.waitKey(1)
                  
                 #print("%s seconds" % (time.time() - start_time))
                 #time.sleep((time.time() - start_time)) #slows down twice dont do it
@@ -164,6 +170,9 @@ class TelloDriver(object):
         odom_msg.pose.pose.orientation.x = data.imu.q1
         odom_msg.pose.pose.orientation.y = data.imu.q2
         odom_msg.pose.pose.orientation.z = data.imu.q3
+
+        #self.drone_position = odom_msg.pose.pose.position
+
         # Linear speeds from MVO received in dm/sec
         odom_msg.twist.twist.linear.x = data.mvo.vel_y/10
         odom_msg.twist.twist.linear.y = data.mvo.vel_x/10
