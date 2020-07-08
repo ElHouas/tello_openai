@@ -55,10 +55,14 @@ class Control:
         self_pub_cmd_vel.publish(self._move_msg)
 
     def yaw(self, position):
-        f = np.sqrt(960**2+720**2)
-        alpha = HFOV/f
+        #f = np.sqrt(960**2+720**2)
+        #alpha =  (HFOV/f)
+        #new_goal = alpha * float(fpv[0] - position[0])
+        
+        f = 960.
+        alpha = 0.7 * HFOV/f
         new_goal = alpha * float(fpv[0] - position[0])
-        print("new_goal",new_goal)
+
         yaw = new_goal + self.goal
         self.goal = yaw
-        return yaw
+        return new_goal
