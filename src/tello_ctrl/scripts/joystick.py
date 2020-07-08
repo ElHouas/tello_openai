@@ -12,7 +12,7 @@ import signal
 import tellopy
 import pygame
 import pygame.locals
-from subprocess import Popen, PIPE
+
 
 #Helpers
 from helpers.rc import JoystickPS4
