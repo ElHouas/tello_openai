@@ -9,6 +9,7 @@ from std_msgs.msg import Empty
 from tello_msgs.msg import FlightData
 from cv_bridge import CvBridge, CvBridgeError
 from nav_msgs.msg import Odometry
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 #Python Utilities
 import av
@@ -18,13 +19,28 @@ import tellopy
 from copy import deepcopy
 from math import *
 import time
+import pygame
+import pygame.locals
 
 fpv = [960, 720]
 
-#Classes
+# Helpers
 from helpers.control import Control
 control = Control()
-pose = Pose()
+
+from helpers.rc import JoystickPS4
+ps4_js = JoystickPS4()
+
+from helpers.cvlib import Detection
+detection = Detection()
+
+buttons = None
+speed = 100
+throttle = 0.0
+yaw = 0.0
+pitch = 0.0
+roll = 0.0
+
 
 class TelloDriver(object):
     def __init__(self):
@@ -32,22 +48,24 @@ class TelloDriver(object):
         # Connect to the drone
         self._drone = tellopy.Tello()
         self._drone.connect()
-        self._drone.wait_for_connection(60.0)
+        self._drone.wait_for_connection(10.0)
 
         # Init 
         rospy.init_node('tello_driver_node', anonymous=False)
         self.current_yaw = 0.0
         self.rate = rospy.Rate(30)
         self._cv_bridge = CvBridge()
+        self.pose = Pose()
         self.frame = None
         self.centroids = []
+        self.drone_position = None
         self.height = 0
 
         # ROS publishers
-        self._flight_data_pub = rospy.Publisher('/tello/flight_data', FlightData, queue_size=1)
-        self._image_pub = rospy.Publisher('/tello/camera/image_raw', Image, queue_size=1)
-        self.pub_odom = rospy.Publisher('/tello/odom', Odometry, queue_size=1, latch=True)
-        self.pub_imu = rospy.Publisher('/tello/imu', Imu, queue_size=1, latch=True)
+        self._flight_data_pub = rospy.Publisher('/tello/flight_data', FlightData, queue_size=10)
+        self._image_pub = rospy.Publisher('/tello/camera/image_raw', Image, queue_size=10)
+        self.pub_odom = rospy.Publisher('/tello/odom', Odometry, queue_size=10, latch=True)
+        self.pub_imu= rospy.Publisher('/tello/imu', Imu, queue_size=10, latch=True)
 
         #  ROS subscribers
         self._drone.subscribe(self._drone.EVENT_FLIGHT_DATA, self.flight_data_callback)
@@ -58,6 +76,21 @@ class TelloDriver(object):
         # Drone start fly
         #self._drone.takeoff()
 
+        #Drone controller PS4
+        global buttons
+        pygame.init()
+        pygame.joystick.init()
+        
+        try:
+            js = pygame.joystick.Joystick(0)
+            js.init()
+            js_name = js.get_name()
+
+            buttons = ps4_js
+
+        except pygame.error:
+              pass
+
         # Start video thread
         self._stop_request = threading.Event()
         video_thread = threading.Thread(target=self.video_worker)
@@ -67,25 +100,33 @@ class TelloDriver(object):
         
         
         while not rospy.is_shutdown():
+            
+            for e in pygame.event.get():
+                    self.handle_input_event(self._drone, e)
+
             if self.frame is not None:
                 start_time = time.time()
                 frame = deepcopy(self.frame)
-                current_yaw = deepcopy(self.current_yaw)
+
+                self.centroids = detection.detect(frame)
                 
                 if len(self.centroids)==0: 
                     continue
                 else:
-                    cent = self.centroids
-                    print("cent", cent)
+                    cent = self.centroids[0]
+                    rospy.loginfo('cent %s', cent)
+                    
                     yaw_angle = control.yaw(cent)
 
                     try:
-                        print("yaw_angle", yaw_angle)
+                        rospy.loginfo('yaw_angle %s', yaw_angle)
                         self._drone.clockwise(yaw_angle)
 
-                        pose.position = 
-                        pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, yaw_angle*pi/180))
-
+                        #self.pose.position =  drone_position
+                        #self.pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, yaw_angle*pi/180))
+                        
+                        #print(self.pose)
+                        #self.pub_odom.pose.publish(self.pose)
 
                     except rospy.ServiceException:
                         pass
@@ -159,6 +200,9 @@ class TelloDriver(object):
         odom_msg.pose.pose.orientation.x = data.imu.q1
         odom_msg.pose.pose.orientation.y = data.imu.q2
         odom_msg.pose.pose.orientation.z = data.imu.q3
+
+        #self.drone_position = odom_msg.pose.pose.position
+
         # Linear speeds from MVO received in dm/sec
         odom_msg.twist.twist.linear.x = data.mvo.vel_y/10
         odom_msg.twist.twist.linear.y = data.mvo.vel_x/10
@@ -185,6 +229,92 @@ class TelloDriver(object):
         imu_msg.linear_acceleration.z = data.imu.acc_z
         
         self.pub_imu.publish(imu_msg)
+
+    def update(self,old, new, max_delta=0.3):
+        if abs(old - new) <= max_delta:
+            res = new
+        else:
+            res = 0.0
+        return res
+
+
+    def handle_input_event(self, drone, e):
+        global speed
+        global throttle
+        global yaw
+        global pitch
+        global roll
+        if e.type == pygame.locals.JOYAXISMOTION:
+            # ignore small input values (Deadzone)
+            if -buttons.DEADZONE <= e.value and e.value <= buttons.DEADZONE:
+                e.value = 0.0
+            if e.axis == buttons.LEFT_Y:
+                throttle = self.update(throttle, e.value * buttons.LEFT_Y_REVERSE)
+                drone.set_throttle(throttle)
+            if e.axis == buttons.LEFT_X:
+                yaw = self.update(yaw, e.value * buttons.LEFT_X_REVERSE)
+                drone.set_yaw(yaw)
+            if e.axis == buttons.RIGHT_Y:
+                pitch = self.update(pitch, e.value * buttons.RIGHT_Y_REVERSE)
+                drone.set_pitch(pitch)
+            if e.axis == buttons.RIGHT_X:
+                roll = self.update(roll, e.value * buttons.RIGHT_X_REVERSE)
+                drone.set_roll(roll)
+        elif e.type == pygame.locals.JOYHATMOTION:
+            if e.value[0] < 0:
+                drone.counter_clockwise(speed)
+            if e.value[0] == 0:
+                drone.clockwise(0)
+            if e.value[0] > 0:
+                drone.clockwise(speed)
+            if e.value[1] < 0:
+                drone.down(speed)
+            if e.value[1] == 0:
+                drone.up(0)
+            if e.value[1] > 0:
+                drone.up(speed)
+        elif e.type == pygame.locals.JOYBUTTONDOWN:
+            if e.button == buttons.LAND:
+                drone.land()
+            elif e.button == buttons.UP:
+                drone.up(speed)
+            elif e.button == buttons.DOWN:
+                drone.down(speed)
+            elif e.button == buttons.ROTATE_RIGHT:
+                drone.clockwise(speed)
+            elif e.button == buttons.ROTATE_LEFT:
+                drone.counter_clockwise(speed)
+            elif e.button == buttons.FORWARD:
+                drone.forward(speed)
+            elif e.button == buttons.BACKWARD:
+                drone.backward(speed)
+            elif e.button == buttons.RIGHT:
+                drone.right(speed)
+            elif e.button == buttons.LEFT:
+                drone.left(speed)
+        elif e.type == pygame.locals.JOYBUTTONUP:
+            if e.button == buttons.TAKEOFF:
+                if throttle != 0.0:
+                    print('###')
+                    print('### throttle != 0.0 (This may hinder the drone from taking off)')
+                    print('###')
+                drone.takeoff()
+            elif e.button == buttons.UP:
+                drone.up(0)
+            elif e.button == buttons.DOWN:
+                drone.down(0)
+            elif e.button == buttons.ROTATE_RIGHT:
+                drone.clockwise(0)
+            elif e.button == buttons.ROTATE_LEFT:
+                drone.counter_clockwise(0)
+            elif e.button == buttons.FORWARD:
+                drone.forward(0)
+            elif e.button == buttons.BACKWARD:
+                drone.backward(0)
+            elif e.button == buttons.RIGHT:
+                drone.right(0)
+            elif e.button == buttons.LEFT:
+                drone.left(0)
 
 def main():
     try:
