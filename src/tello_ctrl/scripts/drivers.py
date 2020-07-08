@@ -70,7 +70,7 @@ class TelloDriver(object):
         #  ROS subscribers
         self._drone.subscribe(self._drone.EVENT_FLIGHT_DATA, self.flight_data_callback)
         self._drone.subscribe(self._drone.EVENT_LOG_DATA, self.cb_data_log)
-        rospy.Subscriber("/aiming/target_point", Point, self.point_callback)
+        #rospy.Subscriber("/aiming/target_point", Point, self.point_callback)
 
 
         # Drone start fly
@@ -159,8 +159,8 @@ class TelloDriver(object):
             if self._stop_request.isSet():
                 return
             
-    def point_callback(self,data):
-        self.centroids = [int(data.x), int(data.y)]
+    #def point_callback(self,data):
+    #    self.centroids = [int(data.x), int(data.y)]
 
     def flight_data_callback(self, event, sender, data, **args):
         flight_data = FlightData()
