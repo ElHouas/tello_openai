@@ -6,7 +6,7 @@ import rospy
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist
 from sensor_msgs.msg import Image, CompressedImage, Imu
 from std_msgs.msg import Empty
-from tello_msgs.msg import FlightData
+from tello_msgs.msg import FlightData as FlightDataMsg
 from cv_bridge import CvBridge, CvBridgeError
 from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -31,6 +31,12 @@ control = Control()
 from helpers.rc import JoystickPS4
 ps4_js = JoystickPS4()
 
+# Add 'EVENT_VIDEO_FRAME_H264' to collect h264 images
+from tellopy._internal import event
+
+# Access to all protocol constant variables
+from tellopy._internal.protocol import *
+
 buttons = None
 speed = 100
 throttle = 0.0
@@ -40,12 +46,13 @@ roll = 0.0
 
 
 class TelloDriver(object):
+    #
     def __init__(self):
        
         # Connect to the drone
         self._drone = tellopy.Tello()
         self._drone.connect()
-        self._drone.wait_for_connection(10.0)
+        self._drone.wait_for_connection(60.0)
 
         # Init 
         rospy.init_node('tello_driver_node', anonymous=False)
@@ -58,16 +65,23 @@ class TelloDriver(object):
         self.drone_position = None
         self.height = 0
 
-        # ROS publishers
-        self._flight_data_pub = rospy.Publisher('/tello/flight_data', FlightData, queue_size=10)
-        self._image_pub = rospy.Publisher('/tello/camera/image_raw', Image, queue_size=10)
-        self.pub_odom = rospy.Publisher('/tello/odom', Odometry, queue_size=10, latch=True)
-        self.pub_imu= rospy.Publisher('/tello/imu', Imu, queue_size=10, latch=True)
+        #H264 Video stream  
+        self.EVENT_VIDEO_FRAME_H264 = event.Event('video frame h264')
+        self.prev_seq_id = None
+        self.seq_block_count = 0
+        self.stream_h264_video = True  
 
         #  ROS subscribers
         self._drone.subscribe(self._drone.EVENT_FLIGHT_DATA, self.flight_data_callback)
         self._drone.subscribe(self._drone.EVENT_LOG_DATA, self.cb_data_log)
         rospy.Subscriber("/aiming/target_point", Point, self.point_callback)
+        
+        # ROS publishers
+        self._flight_data_pub = rospy.Publisher('/tello/flight_data', FlightDataMsg, queue_size=10)
+        self._image_pub = rospy.Publisher('/tello/camera/image_raw', Image, queue_size=10)
+        self.pub_image_h264 = rospy.Publisher('image_raw/h264', CompressedImage, queue_size=10)
+        self.pub_odom = rospy.Publisher('/tello/odom', Odometry, queue_size=10, latch=True)
+        self.pub_imu= rospy.Publisher('/tello/imu', Imu, queue_size=10, latch=True)
 
 
         # Drone start fly
@@ -89,9 +103,15 @@ class TelloDriver(object):
               pass
 
         # Start video thread
-        self._stop_request = threading.Event()
-        video_thread = threading.Thread(target=self.video_worker)
-        video_thread.start()
+        if self.stream_h264_video:
+            self._drone.start_video()
+            self._drone.subscribe(self._drone.EVENT_VIDEO_DATA, self.cb_video_data)            
+            self._drone.subscribe(self.EVENT_VIDEO_FRAME_H264, self.cb_h264_frame)
+        else:       
+            self._stop_request = threading.Event()
+            video_thread = threading.Thread(target=self.video_worker)
+            video_thread.start()
+        
         
         rospy.on_shutdown(self.shutdown)
         
@@ -107,7 +127,7 @@ class TelloDriver(object):
                 #drone_position = deepcopy(self.drone_position)
 
                 #self.centroids = [480, 360]
-                
+                rospy.loginfo('cent %s', self.centroids)
                 if len(self.centroids)==0: 
                     continue
                 else:
@@ -115,6 +135,7 @@ class TelloDriver(object):
                     rospy.loginfo('cent %s', cent)
                     
                     yaw_angle = control.yaw(cent)
+                    rospy.loginfo('cent %s', cent)
 
                     try:
                         rospy.loginfo('yaw_angle %s', yaw_angle)
@@ -141,6 +162,48 @@ class TelloDriver(object):
             self.rate.sleep()
 
 
+    def cb_video_data(self, event, sender, data, **args):
+        now = time.time()
+        
+        # parse packet
+        seq_id = byte(data[0])
+        sub_id = byte(data[1])
+        packet = data[2:]
+        self.sub_last = False
+        if sub_id >= 128: # MSB asserted
+            sub_id -= 128
+            self.sub_last = True
+        
+        #associate packet to (new) frame
+        if self.prev_seq_id is None or self.prev_seq_id != seq_id:
+            # detect wrap-arounds
+            if self.prev_seq_id is not None and self.prev_seq_id > seq_id:
+                self.seq_block_count += 1
+            self.frame_pkts = [None]*128 # since sub_id uses 7 bits
+            self.frame_t = now
+            self.prev_seq_id = seq_id
+        self.frame_pkts[sub_id] = packet
+        
+        # publish frame if completed_image_pub
+        if self.sub_last and all(self.frame_pkts[:sub_id+1]):
+            if isinstance(self.frame_pkts[sub_id], str):
+                frame = ''.join(self.frame_pkts[:sub_id+1])
+            else:
+                frame = b''.join(self.frame_pkts[:sub_id+1])
+            self._drone._Tello__publish(event=self.EVENT_VIDEO_FRAME_H264,data=(frame, self.seq_block_count*256+seq_id, self.frame_t))        
+
+    def cb_h264_frame(self, event, sender, data, **args):
+        frame, seq_id, frame_secs = data
+        pkt_msg = CompressedImage()
+        pkt_msg.header.seq = seq_id
+        #pkt_msg.header.frame_id = self.caminfo.header.frame_id
+        pkt_msg.header.stamp = rospy.Time.from_sec(frame_secs)
+        pkt_msg.data = frame
+        self.pub_image_h264.publish(pkt_msg)
+
+        #self.caminfo.header.seq = seq_id
+        #self.caminfo.header.stamp = rospy.Time.from_sec(frame_secs)
+        #self.pub_caminfo.publish(self.caminfo)  
 
     def video_worker(self):
         container = av.open(self._drone.get_video_stream())
@@ -161,7 +224,7 @@ class TelloDriver(object):
         self.centroids = [int(data.x), int(data.y)]
 
     def flight_data_callback(self, event, sender, data, **args):
-        flight_data = FlightData()
+        flight_data = FlightDataMsg()
 
         flight_data.battery_percent = data.battery_percentage
         flight_data.estimated_flight_time_remaining = data.drone_fly_time_left / 10.
