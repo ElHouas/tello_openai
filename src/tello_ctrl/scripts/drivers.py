@@ -69,7 +69,7 @@ class TelloDriver(object):
         self.EVENT_VIDEO_FRAME_H264 = event.Event('video frame h264')
         self.prev_seq_id = None
         self.seq_block_count = 0
-        self.stream_h264_video = True  
+        self.stream_h264_video = False  
 
         #  ROS subscribers
         self._drone.subscribe(self._drone.EVENT_FLIGHT_DATA, self.flight_data_callback)
