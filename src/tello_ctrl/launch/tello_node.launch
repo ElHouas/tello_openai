@@ -1,4 +1,0 @@
-<?xml version="1.0" ?>
-<launch>
-  <node name="driver_node" pkg="tello_ctrl" type="drivers.py" output="screen" />
-</launch>
