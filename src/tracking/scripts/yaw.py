@@ -124,7 +124,7 @@ class Yaw(object):
                     i = 0
                     for cent in centroids:                   
                         cv2.circle(self.frame, (cent[0], cent[1]), 3, [0,0,255], -1, cv2.LINE_AA)
-                        cv2.putText(self.frame, str(i), (cent[0], cent[1]), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,0), 2)
+                        cv2.putText(self.frame, str(i), (cent[0], cent[1]), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,255), 2)
                         i = i + 1
 
                 cv2.imshow("", self.frame)
