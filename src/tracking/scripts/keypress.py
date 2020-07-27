@@ -40,7 +40,7 @@ class Keypress(threading.Thread):
         
 
 def getKey(key_timeout):
-    tty.setraw(sys.stdin.fileno())
+    tty.setcbreak(sys.stdin.fileno())
     rlist, _, _ = select.select([sys.stdin], [], [], key_timeout)
     if rlist:
         key = sys.stdin.read(1)
