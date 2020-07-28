@@ -85,7 +85,7 @@ class Yaw(object):
         
         self.__createThreads()
 
-        # self.drone.takeoff()
+        #self.drone.takeoff()
 
         
 

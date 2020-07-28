@@ -17,7 +17,7 @@ class Detection:
         parser = argparse.ArgumentParser(description="Locate objects in an image using an object detection DNN.", formatter_class=argparse.RawTextHelpFormatter, epilog=jetson.inference.detectNet.Usage())
         parser.add_argument("--network", type=str, default="pednet", help="pre-trained model to load (see below for options)")
         parser.add_argument("--overlay", type=str, default="none", help="detection overlay flags (e.g. --overlay=box,labels,conf)\nvalid combinations are:  'box', 'labels', 'conf', 'none'")
-        parser.add_argument("--threshold", type=float, default=0.5, help="minimum detection threshold to use")
+        parser.add_argument("--threshold", type=float, default=0.2, help="minimum detection threshold to use")
         parser.add_argument("--device", type=str, default="GPU", help="Device to use. Either GPU or DLA")
         parser.add_argument("--precision", type=str, default="FP16", help="Either INT8, FP16, FP32")
         try:
