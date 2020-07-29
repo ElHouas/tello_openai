@@ -26,8 +26,8 @@ from tracking.msg import BBox, BBoxes
 #from helpers.cvlib import Detection
 #detection = Detection()
 
-from helpers.detection import Detection
-detection = Detection()
+#from helpers.detection import Detection
+#detection = Detection()
 
 from helpers.trtpose import TrtPose
 trtpose = TrtPose()
@@ -57,7 +57,7 @@ class Yaw(object):
         # yaw cmd
         self.yaw_speed = 50
         self.yaw_cmd = ""
-        self.target = [480,360] #???
+        self.target = [480,360] 
         self.frame = None
         self.data = None
 
@@ -97,9 +97,9 @@ class Yaw(object):
             if self.data is not None:
                 self.frame = np.array(self.data.to_image())
 
-                centroids, bboxes = detection.detect(self.frame) # arrays
+                #centroids, bboxes = detection.detect(self.frame) 
 
-                object_counts, objects, normalized_peaks, topology = trtpose.detect(self.frame)
+                centroids, bboxes = trtpose.detect(self.frame)
 
                 if len(centroids) > 0:
                     # select target id using keypress
@@ -110,7 +110,7 @@ class Yaw(object):
                         self.prev_keypress = self.keypress
                         print("catch once")
                     elif self.prev_target_cent is not None:
-                        print("start tracking")
+                        #print("start tracking")
 
                         # extract features of bboxes
                         bboxes_features = mars.extractBBoxesFeatures(self.frame, bboxes)

@@ -10,6 +10,7 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 bridge = CvBridge()
 #Import custom modules
+from helpers.utils.bbox import *
 
 class Detection:
     """ Thread run for logic to do with bboxes; inference etc. """
@@ -46,17 +47,6 @@ class Detection:
         for d in detections:
             bbox = [d.Left, d.Top, d.Right, d.Bottom]
             bboxes.append(bbox)
-            cent = self._bbox_to_center(bbox)
+            cent = bbox_to_center(bbox)
             centroids.append(cent)
         return np.array(centroids), np.array(bboxes)
-
-    def _bbox_to_center(self, bbox):
-        '''Return center of box.
-        Args:
-            bbox in corner format [x1 y1 x2 y2] where x/yi are the corner pts.
-        Returns:
-            coordinates, [x y], of center.
-        '''
-        x = (bbox[0] + bbox[2]) / 2
-        y = (bbox[1] + bbox[3]) / 2
-        return [int(x), int(y)]
