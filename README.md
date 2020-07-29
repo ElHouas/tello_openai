@@ -12,9 +12,12 @@ DJI Tello drone running OpenAI Stable Baselines
     git submodule update
     cd ..
     catkin_make -DPYTHON_EXECUTABLE:FILEPATH=~/.virtualenvs/py3venv/bin/python
-
 ## Run
     source devel/setup.bash
+
+## TRT Pose
+
+- Resnet18 wieghts model [here](https://drive.google.com/file/d/1XYDdCUdiF2xxx4rznmLb62SdOUZuoNbd/view)
 
 ## Reference
 1. https://github.com/dji-sdk/Tello-Python
