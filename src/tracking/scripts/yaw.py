@@ -16,7 +16,6 @@ import pygame.locals
 
 from helpers.rc import JoystickPS4
 
-
 # ros
 import rospy
 from sensor_msgs.msg import Image
@@ -30,8 +29,12 @@ from tracking.msg import BBox, BBoxes
 from helpers.detection import Detection
 detection = Detection()
 
+from helpers.trtpose import TrtPose
+trtpose = TrtPose()
+
 from helpers.mars import DeepFeatures
 mars = DeepFeatures()
+
 roi_dist = 400 # To-do: dynamic
 feature_dist = 0.4
 neighbor_dist = 0.15
@@ -86,15 +89,17 @@ class Yaw(object):
         self.__createThreads()
 
         #self.drone.takeoff()
-
-        
+   
 
         while not rospy.is_shutdown():
             for e in pygame.event.get():
                 self.handle_input_event(self.drone, e)            
             if self.data is not None:
                 self.frame = np.array(self.data.to_image())
+
                 centroids, bboxes = detection.detect(self.frame) # arrays
+
+                object_counts, objects, normalized_peaks, topology = trtpose.detect(self.frame)
 
                 if len(centroids) > 0:
                     # select target id using keypress
@@ -158,19 +163,6 @@ class Yaw(object):
             self.keypress = int(data.data)
 
 
-    # def video_worker(self):
-    #     while True:
-    #         rospy.loginfo('starting video pipeline')
-    #         if self.frame is None:
-    #             continue
-    #         # self.frame = np.array(self.data.to_image())
-    #         cv2.circle(self.frame, (self.target[0], self.target[1]), 3, [0,0,255], -1, cv2.LINE_AA)
-    #         cv2.imshow("", self.frame)
-    #         cv2.waitKey(1)
-
-    #     cv2.destroyAllWindows
-
-
     def __createThreads(self):
         """ Run AI in thread. """
 
@@ -178,9 +170,6 @@ class Yaw(object):
         self.frame_thread = threading.Thread(target=self.frameCallback)
         self.frame_thread.start()
         
-        # self.video_thread = threading.Thread(target=self.video_worker)
-        # self.video_thread.daemon = True
-        # self.video_thread.start()
 
     #Tracking functions
     def __roi(self, centroids, bboxes):
