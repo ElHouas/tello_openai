@@ -17,7 +17,7 @@ DJI Tello drone running OpenAI Stable Baselines
 
 ## TRT Pose
 
-- Resnet18 wieghts model [here](https://drive.google.com/file/d/1XYDdCUdiF2xxx4rznmLb62SdOUZuoNbd/view)
+- Resnet18 model weights [here](https://drive.google.com/file/d/1XYDdCUdiF2xxx4rznmLb62SdOUZuoNbd/view)
 
 ## Reference
 1. https://github.com/dji-sdk/Tello-Python
