@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 """
 tellopy sample using keyboard and video player
 

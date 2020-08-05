@@ -1,0 +1,5 @@
+vision_opencv/opencv_tests
+/home/nvidia/tello_openai/devel/.private/opencv_tests/cmake.lock /home/nvidia/tello_openai/devel/./cmake.lock
+/home/nvidia/tello_openai/devel/.private/opencv_tests/share/opencv_tests/cmake/opencv_testsConfig-version.cmake /home/nvidia/tello_openai/devel/share/opencv_tests/cmake/opencv_testsConfig-version.cmake
+/home/nvidia/tello_openai/devel/.private/opencv_tests/share/opencv_tests/cmake/opencv_testsConfig.cmake /home/nvidia/tello_openai/devel/share/opencv_tests/cmake/opencv_testsConfig.cmake
+/home/nvidia/tello_openai/devel/.private/opencv_tests/lib/pkgconfig/opencv_tests.pc /home/nvidia/tello_openai/devel/lib/pkgconfig/opencv_tests.pc
