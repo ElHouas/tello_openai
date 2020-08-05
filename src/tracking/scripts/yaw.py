@@ -10,12 +10,8 @@ from scipy.spatial import distance as dist
 import threading
 import tellopy
 import time
-
 import pygame
 import pygame.locals
-
-from helpers.rc import JoystickPS4
-
 
 # ros
 import rospy
@@ -30,11 +26,10 @@ from tracking.msg import BBox, BBoxes
 from helpers.detection import Detection
 detection = Detection()
 
-from helpers.mars import DeepFeatures
-mars = DeepFeatures()
+from helpers.rc import JoystickPS4
+from helpers.mars import MarsFeatures
+mars = MarsFeatures()
 roi_dist = 400 # To-do: dynamic
-feature_dist = 0.4
-neighbor_dist = 0.15
 height = 720
 width = 960 
 
@@ -43,8 +38,6 @@ throttle = 0.0
 yaw = 0.0
 pitch = 0.0
 roll = 0.0
-
-
 
 class Yaw(object):
     def __init__(self):
@@ -59,7 +52,6 @@ class Yaw(object):
         self.data = None
 
         # tracking history
-        self.tracking_bbox_features = None
         self.prev_target_cent = None
         self.prev_target_features = None
         target_id = -1        # Connect to the drone
@@ -87,8 +79,6 @@ class Yaw(object):
 
         #self.drone.takeoff()
 
-        
-
         while not rospy.is_shutdown():
             for e in pygame.event.get():
                 self.handle_input_event(self.drone, e)            
@@ -100,7 +90,7 @@ class Yaw(object):
                     # select target id using keypress
                     if self.keypress != -1 and self.keypress != self.prev_keypress:
                         target_id = self.keypress
-                        self.tracking_bbox_features = mars.extractBBoxFeatures(self.frame, bboxes, target_id)
+                        mars.extractBBoxFeatures(self.frame, bboxes, target_id)
                         self.prev_target_cent = centroids[target_id]
                         self.prev_keypress = self.keypress
                         print("catch once")
@@ -108,9 +98,7 @@ class Yaw(object):
                         print("start tracking")
 
                         # extract features of bboxes
-                        bboxes_features = mars.extractBBoxesFeatures(self.frame, bboxes)
-                        features_distance = dist.cdist(self.tracking_bbox_features, bboxes_features, "cosine")[0]
-                        tracking_id = self.__assignNewTrackingId(features_distance, threshold=feature_dist)
+                        tracking_id = mars.matchBoundingBoxes(self.frame, bboxes)
 
                         if tracking_id != -1:
                             print(tracking_id)
@@ -158,29 +146,13 @@ class Yaw(object):
             self.keypress = int(data.data)
 
 
-    # def video_worker(self):
-    #     while True:
-    #         rospy.loginfo('starting video pipeline')
-    #         if self.frame is None:
-    #             continue
-    #         # self.frame = np.array(self.data.to_image())
-    #         cv2.circle(self.frame, (self.target[0], self.target[1]), 3, [0,0,255], -1, cv2.LINE_AA)
-    #         cv2.imshow("", self.frame)
-    #         cv2.waitKey(1)
-
-    #     cv2.destroyAllWindows
-
-
     def __createThreads(self):
         """ Run AI in thread. """
 
         self.stop_request = threading.Event()
         self.frame_thread = threading.Thread(target=self.frameCallback)
         self.frame_thread.start()
-        
-        # self.video_thread = threading.Thread(target=self.video_worker)
-        # self.video_thread.daemon = True
-        # self.video_thread.start()
+
 
     #Tracking functions
     def __roi(self, centroids, bboxes):
@@ -192,27 +164,6 @@ class Yaw(object):
         centroids_roi = centroids[position_roi, :]
         bboxes_roi = bboxes[position_roi, :]
         return centroids_roi, bboxes_roi
-
-    def __assignNewTrackingId(self, distance, threshold):
-        # Logic: 
-        # 1. If detect only one and the distance is less than 0.3, assign id;
-        # 2. If detect more than one, but the first two closest distances' difference is lesss than 0.1, don't assign id;
-        # 3. if the first two closest distances' difference is more than 0.1, and the closest distance is less than 0.3, assign id; 
-
-        tracking_id = -1
-        dist_sort = np.sort(distance)
-        if len(dist_sort) == 1:
-            if distance[0] < threshold:
-                tracking_id = 0
-        else:
-            if (dist_sort[1]-dist_sort[0]) < neighbor_dist:
-                tracking_id = -1
-            else:
-                min_position = np.argmin(distance)
-                if distance[min_position] < threshold:
-                    tracking_id = min_position
-
-        return tracking_id
 
     # yaw
     def __yaw(self, xoff):

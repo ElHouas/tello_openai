@@ -1,1 +1,1 @@
-from .objects import DeepFeatures
+from .objects import MarsFeatures
