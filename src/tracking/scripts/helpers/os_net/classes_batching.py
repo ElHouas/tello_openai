@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import time
 import numpy as np
-from PIL import Image
+from PIL import Image as PIm
 import torch
 import torchvision
 from scipy.spatial import distance as dist
@@ -11,7 +11,6 @@ from torch2trt import TRTModule
 from statistics import mean
 import cv2
 
-
 class OSNet():
     def __init__(self,
                  model,
@@ -19,7 +18,7 @@ class OSNet():
                  osnet_weight_upper=1.0,
                  osnet_weight_lower=1.0,
                  batch_size=8,
-                 feature_thresh=0.3,
+                 feature_thresh=0.25,
                  neighbor_dist=0.05,
                  img_shape=(480, 640, 3)):
         self.tracked_bbox_features = []
@@ -75,7 +74,7 @@ class OSNet():
 
     def __preProcess(self, frame, crop_dim):
         patch = self.extract_image_patch(frame, crop_dim, self.patch_shape)
-        img = Image.fromarray(patch)
+        img = PIm.fromarray(patch)
         img = self.transforms(img).cuda()
         img.unsqueeze_(0)
         return img
@@ -86,18 +85,37 @@ class OSNet():
         return features
 
     def __extractBBoxesFeatures(self, frame, bboxes):
-        bboxes_features = []
+        bboxes_features = np.empty([0, 512])
+        t0 = time.time()
+        crops = []
         for bbox in bboxes:
             crop = self.__preProcess(frame, bbox)
-            features = self.model_trt(
-                crop).cpu().detach().numpy()  # output a 1d array [1, 512]
-            bboxes_features.append(list(features[0]))
+            crops.append(crop[0])
+        if len(crops) <= self.batch_size:
+            crops = torch.stack(crops, dim=0)
+            bboxes_features = self.model_trt(
+                crops).cpu().detach().numpy()  # output array [n, 512]
+        else:
+            iters = int( len(crops) / self.batch_size )
+            last_loop = len(crops) % self.batch_size
+            if last_loop != 0:
+                iters += 1
+            for i in range(iters):
+                start = self.batch_size*i
+                end = start + self.batch_size
+                num = self.batch_size
+                if end > len(crops):
+                    end = len(crops)
+                    num = len(crops) - start
+                crops_stacked = torch.stack(crops[start:end], dim=0)
+                features = self.model_trt(crops_stacked).cpu().detach().numpy()[0:num]  # output array [n, 512]
+                bboxes_features = np.concatenate((bboxes_features, features))
         return np.array(bboxes_features)
 
     def calcFeaturesDistance(self, frame, bboxes):
         bboxes_features = self.__extractBBoxesFeatures(frame, bboxes)
         features_distance = dist.cdist(self.tracked_bbox_features,
-                                       bboxes_features, "cosine")[0]
+                                       bboxes_features, "cosine")
         return features_distance
 
     def extractTrackedBBoxFeatures(self, frame, bbox):
@@ -107,14 +125,14 @@ class OSNet():
         self.tracked_bbox_features = []
         self.dists_buffer = []
 
-    def weighted_mean(self, array):
+    def __weightedMean(self, array):
         coefs = np.linspace(self.weight_upper,
                             self.weight_lower,
                             num=array.shape[0])
         array = (array.T * coefs).T
         return np.nanmean(array, axis=0)
 
-    def __assignNewTrackingId(self, distances)):
+    def __assignNewTrackingId(self, distances):
         # Logic: 
         # 1. If detect only one and the mean distance is less than feature_thresh, assign id;
         # 2. If detect more than one, but the first two closest distances' difference is less than neighbor_dist, don't assign id;
@@ -133,9 +151,29 @@ class OSNet():
                     tracking_id = min_position
         return tracking_id
 
+    def __runBufferSystem(self, distances):
+        if len(self.dists_buffer) >= self.history_length:
+            self.dists_buffer.pop(0)
+        if distances.shape[1] == 1:
+            self.dists_buffer.append(distances.flatten().tolist())
+        else:
+            self.dists_buffer.append(np.squeeze(distances).tolist())
+        max_entries = max([len(x) for x in self.dists_buffer])
+        last_entries = len(self.dists_buffer[-1])
+        for row in self.dists_buffer:
+            if len(row) < max_entries:
+                row.extend(np.nan for _ in range(max_entries - len(row)))
+        array = np.array(self.dists_buffer)
+        array = np.delete(array, np.s_[last_entries:max_entries], axis=1)
+        means = self.__weightedMean(array)
+        return means
 
     def matchBoundingBoxes(self, frame, bboxes):
-        # if bboxes.size == 0: return -1
+        if bboxes.size == 0: return -1, []
         distances = self.calcFeaturesDistance(frame, bboxes)
+        if self.history_length != 1:
+            distances = self.__runBufferSystem(distances)
+        else:
+            distances = distances[0]
         new_id = self.__assignNewTrackingId(distances)
         return new_id
