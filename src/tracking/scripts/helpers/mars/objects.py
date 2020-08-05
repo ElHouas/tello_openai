@@ -14,7 +14,7 @@ from .encoder import create_box_encoder
 model = os.path.join(rospack.get_path("tracking"), "scripts/helpers/mars/model/", "mars-small128.pb")
 
 class MarsFeatures:
-    def __init__(self,model, img_shape=(720, 960, 3), feature_dist=0.4, neighbor_dist=0.15):
+    def __init__(self, model=model, img_shape=(720, 960, 3), feature_dist=0.4, neighbor_dist=0.15):
         self.img_shape = img_shape
         self.features = []
         self.encoder = create_box_encoder(model)
