@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import av
 import cv2
@@ -35,7 +35,7 @@ from helpers.mars import DeepFeatures
 
 # Init OSNet
 from helpers.os_net import OSNet
-MODEL_PATH = ''
+MODEL_PATH = '/home/nvidia/we02_core/src/we02_ai_component_tracking/script/helpers/deep_feature_tracking/models/osnet_trt_fp16.pth'
 osnet = OSNet(MODEL_PATH, img_shape=(720, 960, 3))
 
 
