@@ -41,9 +41,9 @@ class OSNet():
                                              [0.229, 0.224, 0.225])
         ])
         # Warm up run
-        blank_image = np.zeros(self.img_shape, np.uint8)
-        for _ in range(4):
-            self.__extractBboxFeatures(blank_image, [10, 10, 110, 110])
+        # blank_image = np.zeros(self.img_shape, np.uint8)
+        # for _ in range(4):
+        #     self.__extractBboxFeatures(blank_image, [10, 10, 110, 110])
         self.resetDeepFeatures()
 
     def extract_image_patch(self, image, bbox, patch_shape):
