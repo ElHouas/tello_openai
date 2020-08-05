@@ -31,7 +31,14 @@ from helpers.detection import Detection
 detection = Detection()
 
 from helpers.mars import DeepFeatures
-mars = DeepFeatures()
+# mars = DeepFeatures()
+
+# Init OSNet
+from helpers.os_net import OSNet
+MODEL_PATH = ''
+osnet = OSNet(MODEL_PATH, img_shape=(720, 960, 3))
+
+
 roi_dist = 400 # To-do: dynamic
 feature_dist = 0.4
 neighbor_dist = 0.15
@@ -43,7 +50,6 @@ throttle = 0.0
 yaw = 0.0
 pitch = 0.0
 roll = 0.0
-
 
 
 class Yaw(object):
@@ -87,7 +93,6 @@ class Yaw(object):
 
         #self.drone.takeoff()
 
-        
 
         while not rospy.is_shutdown():
             for e in pygame.event.get():
@@ -100,7 +105,7 @@ class Yaw(object):
                     # select target id using keypress
                     if self.keypress != -1 and self.keypress != self.prev_keypress:
                         target_id = self.keypress
-                        self.tracking_bbox_features = mars.extractBBoxFeatures(self.frame, bboxes, target_id)
+                        osnet.extractTrackedBBoxFeatures(self.frame, bboxes[target_id])
                         self.prev_target_cent = centroids[target_id]
                         self.prev_keypress = self.keypress
                         print("catch once")
@@ -108,10 +113,7 @@ class Yaw(object):
                         print("start tracking")
 
                         # extract features of bboxes
-                        bboxes_features = mars.extractBBoxesFeatures(self.frame, bboxes)
-                        features_distance = dist.cdist(self.tracking_bbox_features, bboxes_features, "cosine")[0]
-                        tracking_id = self.__assignNewTrackingId(features_distance, threshold=feature_dist)
-
+                        tracking_id = osnet.matchBoundingBoxes(self.frame, bboxes)
                         if tracking_id != -1:
                             print(tracking_id)
                             target_cent = centroids[tracking_id]
