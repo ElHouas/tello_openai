@@ -55,7 +55,9 @@ class MarsFeatures:
         # 3. if the first two closest distances' difference is more than 0.1, and the closest distance is less than 0.3, assign id; 
         tracking_id = -1
         dist_sort = np.sort(distance)
-        if len(dist_sort) == 1:
+        if len(dist_sort) == 0:
+            tracking_id = -1
+        elif len(dist_sort) == 1:
             if distance[0] < threshold:
                 tracking_id = 0
         else:
@@ -81,8 +83,11 @@ class MarsFeatures:
         #         self.counter = 0
         #     return 0
         # self.counter = 0
-        distances = self.__calcFeaturesDistance(frame, bboxes)
-        target_id = self.__assignNewTrackingId(distances, self.feature_dist)
+        if len(bboxes) == 0:
+            target_id = -1
+        else:
+            distances = self.__calcFeaturesDistance(frame, bboxes)
+            target_id = self.__assignNewTrackingId(distances, self.feature_dist)
         return target_id
 
     def resetDeepFeatures(self):
