@@ -20,15 +20,15 @@ from std_msgs.msg import Int8, Empty, Float64, String
 from tracking.msg import BBox, BBoxes
 
 # helpers
-#from helpers.cvlib import Detection
-#detection = Detection()
 
 from helpers.detection import Detection
 detection = Detection()
 
 from helpers.rc import JoystickPS4
-from helpers.mars import MarsFeatures
-mars = MarsFeatures()
+
+from helpers.deep import DeepFeatures
+deep = DeepFeatures()
+
 roi_dist = 400 # To-do: dynamic
 height = 720
 width = 960 
@@ -47,7 +47,7 @@ class Yaw(object):
         # yaw cmd
         self.yaw_speed = 50
         self.yaw_cmd = ""
-        self.target = [480,360] #???
+        self.target = [480,360] 
         self.frame = None
         self.data = None
 
@@ -90,7 +90,7 @@ class Yaw(object):
                     # select target id using keypress
                     if self.keypress != -1 and self.keypress != self.prev_keypress:
                         target_id = self.keypress
-                        mars.extractBBoxFeatures(self.frame, bboxes, target_id)
+                        deep.extractBBoxFeatures(self.frame, bboxes, target_id)
                         self.prev_target_cent = centroids[target_id]
                         self.prev_keypress = self.keypress
                         print("catch once")
@@ -98,7 +98,7 @@ class Yaw(object):
                         print("start tracking")
 
                         # extract features of bboxes
-                        tracking_id = mars.matchBoundingBoxes(self.frame, bboxes)
+                        tracking_id = deep.matchBoundingBoxes(self.frame, bboxes)
 
                         if tracking_id != -1:
                             print(tracking_id)

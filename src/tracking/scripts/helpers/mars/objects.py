@@ -71,18 +71,6 @@ class MarsFeatures:
 
     
     def matchBoundingBoxes(self, frame, bboxes):
-        # Commented Logic:
-        #   Re-take features if only 1 bbox is in roi for a period of time.
-        # if bboxes.size == 0:
-        #     self.counter = 0
-        #     return -1
-        # if bboxes.size == 4:
-        #     self.counter += 1
-        #     if self.counter == self.update_after:
-        #         self.extractBBoxFeatures(self.frame, bboxes, 0)
-        #         self.counter = 0
-        #     return 0
-        # self.counter = 0
         if len(bboxes) == 0:
             target_id = -1
         else:
