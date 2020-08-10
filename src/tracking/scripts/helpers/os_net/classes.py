@@ -19,7 +19,7 @@ class OSNet():
                  osnet_weight_upper=1.0,
                  osnet_weight_lower=1.0,
                  batch_size=8,
-                 feature_thresh=0.3,
+                 feature_thresh=0.25,
                  neighbor_dist=0.05,
                  img_shape=(480, 640, 3)):
         self.tracked_bbox_features = []
@@ -114,7 +114,7 @@ class OSNet():
         array = (array.T * coefs).T
         return np.nanmean(array, axis=0)
 
-    def __assignNewTrackingId(self, distances)):
+    def __assignNewTrackingId(self, distances):
         # Logic: 
         # 1. If detect only one and the mean distance is less than feature_thresh, assign id;
         # 2. If detect more than one, but the first two closest distances' difference is less than neighbor_dist, don't assign id;
