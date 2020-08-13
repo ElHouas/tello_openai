@@ -54,7 +54,7 @@ class Yaw(object):
         # tracking history
         self.prev_target_cent = None
         self.prev_target_features = None
-        target_id = -1        # Connect to the drone
+        target_id = -1        
         
         # connect to the drone
 
