@@ -90,6 +90,7 @@ class ImageEncoder(object):
         with torch.no_grad():
             im_batch = im_batch.to(self.device)
             features = self.net(im_batch)
+            print('features', features.cpu().numpy())
         return features.cpu().numpy()
 
 

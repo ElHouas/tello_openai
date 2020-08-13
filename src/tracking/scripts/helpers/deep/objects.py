@@ -10,7 +10,7 @@ from scipy.spatial import distance as dist
 from .encoder import create_box_encoder
 
 class DeepFeatures():
-    def __init__(self, img_shape=(720, 960, 3), feature_dist=0.2, neighbor_dist=0.14):
+    def __init__(self, img_shape=(720, 960, 3), feature_dist=0.4, neighbor_dist=0.14):
         self.encoder = create_box_encoder()
         self.img_shape = img_shape
         self.height = self.img_shape[0]
@@ -48,6 +48,7 @@ class DeepFeatures():
                 min_position = np.argmin(distance)
                 if distance[min_position] < threshold:
                     tracking_id = min_position
+                    print('TRACKED')
         return tracking_id
 
     
