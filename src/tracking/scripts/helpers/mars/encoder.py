@@ -73,7 +73,9 @@ class ImageEncoder(object):
 
     def __init__(self, checkpoint_filename, input_name="images",
                  output_name="features"):
-        self.session = tf.compat.v1.Session()
+        gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.2)
+        self.session = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
+        #self.session = tf.compat.v1.Session()
         with tf.io.gfile.GFile(checkpoint_filename, "rb") as file_handle:
             graph_def = tf.compat.v1.GraphDef()
             graph_def.ParseFromString(file_handle.read())
