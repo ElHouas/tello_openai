@@ -63,9 +63,9 @@ class DeepFeatures():
                  model_o = osnet_path ,
                  model_m= mn_path,
                  img_shape=(720, 960, 3),
-                 feature_thresh=1.5,
-                 neighbor_dist=0.4,
-                 histogram_multiplier=2):
+                 feature_thresh=0.9,
+                 neighbor_dist=0.2,
+                 histogram_multiplier=1.5):
         self.img_shape = img_shape
         self.tracked_bbox_features = []
         self.model_trt_o = TRTModule()
@@ -201,7 +201,6 @@ class DeepFeatures():
 
     def matchBoundingBoxes(self, frame, bboxes):
         if bboxes.size == 0: return -1
-        if bboxes.size == 4: return 0
         distances_o, distances_m, distances_h = self.calcFeaturesDistance(frame, bboxes)
         distances = self.scale_and_add_distances(distances_o, distances_m, distances_h)
         new_id = self.__assignNewTrackingId(distances)

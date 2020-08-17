@@ -99,7 +99,7 @@ class Yaw(object):
                         self.prev_keypress = self.keypress
                         print("catch once")
                     elif self.prev_target_cent is not None:
-                        print("start tracking")
+                        # print("start tracking")
 
                         # extract features of bboxes
                         tracking_id = dft.matchBoundingBoxes(self.frame, bboxes)
