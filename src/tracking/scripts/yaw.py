@@ -2,7 +2,6 @@
 
 import av
 import cv2
-from copy import deepcopy
 from math import *
 import numpy as np
 import os
@@ -10,12 +9,11 @@ from scipy.spatial import distance as dist
 import threading
 import tellopy
 import time
-
 import pygame
 import pygame.locals
+import yaml
 
 from helpers.rc import JoystickPS4
-
 
 # ros
 import rospy
@@ -24,20 +22,12 @@ from std_msgs.msg import Int8, Empty, Float64, String
 from tracking.msg import BBox, BBoxes
 
 # helpers
-#from helpers.cvlib import Detection
-#detection = Detection()
 
 from helpers.detection import Detection
 detection = Detection()
 
-from helpers.mars import DeepFeatures
-# mars = DeepFeatures()
-
-# Init OSNet
-from helpers.os_net import OSNet
-MODEL_PATH = '/home/nvidia/we02_core/src/we02_ai_component_tracking/script/helpers/deep_feature_tracking/models/osnet_trt_fp16.pth'
-osnet = OSNet(MODEL_PATH, img_shape=(720, 960, 3))
-
+from helpers.deep_feature_tracking import *
+dft = DeepFeatures()
 
 roi_dist = 400 # To-do: dynamic
 feature_dist = 0.4
@@ -60,7 +50,7 @@ class Yaw(object):
         # yaw cmd
         self.yaw_speed = 50
         self.yaw_cmd = ""
-        self.target = [480,360] #???
+        self.target = [480,360] 
         self.frame = None
         self.data = None
 
@@ -68,9 +58,9 @@ class Yaw(object):
         self.tracking_bbox_features = None
         self.prev_target_cent = None
         self.prev_target_features = None
-        target_id = -1        # Connect to the drone
+        target_id = -1       
         
-        # connect to the drone
+        # Connect to the drone
 
         self.drone = tellopy.Tello()
         self.drone.connect()
@@ -93,7 +83,6 @@ class Yaw(object):
 
         #self.drone.takeoff()
 
-
         while not rospy.is_shutdown():
             for e in pygame.event.get():
                 self.handle_input_event(self.drone, e)            
@@ -105,7 +94,7 @@ class Yaw(object):
                     # select target id using keypress
                     if self.keypress != -1 and self.keypress != self.prev_keypress:
                         target_id = self.keypress
-                        osnet.extractTrackedBBoxFeatures(self.frame, bboxes[target_id])
+                        dft.extractTrackedBBoxFeatures(self.frame, bboxes[target_id])
                         self.prev_target_cent = centroids[target_id]
                         self.prev_keypress = self.keypress
                         print("catch once")
@@ -113,7 +102,7 @@ class Yaw(object):
                         print("start tracking")
 
                         # extract features of bboxes
-                        tracking_id = osnet.matchBoundingBoxes(self.frame, bboxes)
+                        tracking_id = dft.matchBoundingBoxes(self.frame, bboxes)
                         if tracking_id != -1:
                             print(tracking_id)
                             target_cent = centroids[tracking_id]
@@ -160,19 +149,6 @@ class Yaw(object):
             self.keypress = int(data.data)
 
 
-    # def video_worker(self):
-    #     while True:
-    #         rospy.loginfo('starting video pipeline')
-    #         if self.frame is None:
-    #             continue
-    #         # self.frame = np.array(self.data.to_image())
-    #         cv2.circle(self.frame, (self.target[0], self.target[1]), 3, [0,0,255], -1, cv2.LINE_AA)
-    #         cv2.imshow("", self.frame)
-    #         cv2.waitKey(1)
-
-    #     cv2.destroyAllWindows
-
-
     def __createThreads(self):
         """ Run AI in thread. """
 
@@ -180,21 +156,6 @@ class Yaw(object):
         self.frame_thread = threading.Thread(target=self.frameCallback)
         self.frame_thread.start()
         
-        # self.video_thread = threading.Thread(target=self.video_worker)
-        # self.video_thread.daemon = True
-        # self.video_thread.start()
-
-    #Tracking functions
-    def __roi(self, centroids, bboxes):
-        # Logic: 
-        # 1. Only compare features of targets within centroids ROI
-
-        centroids_dist = np.array(abs(centroids[:, [0]] - self.prev_target_cent[0])).flatten()
-        position_roi = np.where(centroids_dist < roi_dist)[0]
-        centroids_roi = centroids[position_roi, :]
-        bboxes_roi = bboxes[position_roi, :]
-        return centroids_roi, bboxes_roi
-
     def __assignNewTrackingId(self, distance, threshold):
         # Logic: 
         # 1. If detect only one and the distance is less than 0.3, assign id;
